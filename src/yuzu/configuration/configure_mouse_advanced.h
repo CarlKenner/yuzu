@@ -1,4 +1,4 @@
-﻿// Copyright 2016 Citra Emulator Project
+// Copyright 2016 Citra Emulator Project
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
@@ -8,11 +8,17 @@
 #include <optional>
 #include <QDialog>
 
+#include "common/param_package.h"
 #include "core/settings.h"
 
 class QCheckBox;
 class QPushButton;
 class QTimer;
+
+namespace InputCommon::Polling {
+class DevicePoller;
+enum class DeviceType;
+} // namespace InputCommon::Polling
 
 namespace Ui {
 class ConfigureMouseAdvanced;

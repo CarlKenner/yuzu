@@ -3,7 +3,9 @@
 // Refer to the license.txt file included.
 
 #include <QGraphicsItem>
+#ifndef DOLPHIN
 #include <QtConcurrent/QtConcurrent>
+#endif
 #include "core/hle/service/bcat/backend/boxcat.h"
 #include "core/settings.h"
 #include "ui_configure_service.h"

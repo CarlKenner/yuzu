@@ -17,7 +17,9 @@
 #include <QVector>
 
 #include "common/common_types.h"
+#include "core/file_sys/registered_cache.h"
 #include "yuzu/compatibility_list.h"
+#include "yuzu/game_list_p.h"
 
 class QStandardItem;
 

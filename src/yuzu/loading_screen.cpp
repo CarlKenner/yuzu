@@ -17,7 +17,9 @@
 #include <QPropertyAnimation>
 #include <QStyleOption>
 #include <QTime>
+#ifndef DOLPHIN
 #include <QtConcurrent/QtConcurrentRun>
+#endif
 #include "common/logging/log.h"
 #include "core/frontend/framebuffer_layout.h"
 #include "core/loader/loader.h"

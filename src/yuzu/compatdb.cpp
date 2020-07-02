@@ -5,7 +5,9 @@
 #include <QButtonGroup>
 #include <QMessageBox>
 #include <QPushButton>
+#ifndef DOLPHIN
 #include <QtConcurrent/qtconcurrentrun.h>
+#endif
 #include "common/logging/log.h"
 #include "common/telemetry.h"
 #include "core/core.h"
@@ -60,8 +62,10 @@ void CompatDB::Submit() {
         button(NextButton)->setText(tr("Submitting"));
         button(CancelButton)->setVisible(false);
 
+#ifndef DOLPHIN
         testcase_watcher.setFuture(QtConcurrent::run(
             [] { return Core::System::GetInstance().TelemetrySession().SubmitTestcase(); }));
+#endif
         break;
     default:
         LOG_ERROR(Frontend, "Unexpected page: {}", currentId());

@@ -110,7 +110,8 @@ void AESCipher<Key, KeySize>::Transcode(const u8* src, std::size_t size, u8* des
         }
     }
 
-    mbedtls_cipher_finish(context, nullptr, nullptr);
+    size_t olen;
+    mbedtls_cipher_finish(context, nullptr, &olen);
 }
 
 template <typename Key, std::size_t KeySize>

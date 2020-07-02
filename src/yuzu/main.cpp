@@ -44,6 +44,7 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 
 #define QT_NO_OPENGL
 #include <QClipboard>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDesktopWidget>
 #include <QDialogButtonBox>
@@ -51,12 +52,16 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QMimeData>
+#include <QProcess>
 #include <QProgressBar>
 #include <QProgressDialog>
 #include <QShortcut>
 #include <QStatusBar>
 #include <QSysInfo>
+#ifndef DOLPHIN
 #include <QtConcurrent/QtConcurrent>
+#endif
 
 #include <fmt/format.h>
 #include "common/common_paths.h"
@@ -2206,10 +2211,16 @@ void GMainWindow::OnReinitializeKeys(ReinitializeKeyBehavior behavior) {
 
         prog.show();
 
+#ifndef DOLPHIN
         auto future = QtConcurrent::run(function);
         while (!future.isFinished()) {
             QCoreApplication::processEvents();
         }
+#else
+        keys.PopulateFromPartitionData(pdm);
+        Core::System::GetInstance().GetFileSystemController().CreateFactories(*vfs);
+        keys.DeriveETicket(pdm);
+#endif
 
         prog.close();
     }

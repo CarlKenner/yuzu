@@ -4,7 +4,9 @@
 
 #include <QIcon>
 #include <QMessageBox>
+#ifndef DOLPHIN
 #include <QtConcurrent/QtConcurrentRun>
+#endif
 #include "core/settings.h"
 #include "core/telemetry_session.h"
 #include "ui_configure_web.h"
@@ -143,11 +145,13 @@ void ConfigureWeb::OnLoginChanged() {
 void ConfigureWeb::VerifyLogin() {
     ui->button_verify_login->setDisabled(true);
     ui->button_verify_login->setText(tr("Verifying..."));
+#ifndef DOLPHIN
     verify_watcher.setFuture(QtConcurrent::run(
         [username = UsernameFromDisplayToken(ui->edit_token->text().toStdString()),
          token = TokenFromDisplayToken(ui->edit_token->text().toStdString())] {
             return Core::VerifyLogin(username, token);
         }));
+#endif
 }
 
 void ConfigureWeb::OnLoginVerified() {
