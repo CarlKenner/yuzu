@@ -76,7 +76,10 @@ private:
         const auto process_id = rp.PopRaw<u64>();
         std::vector<std::vector<u8>> data{ctx.ReadBuffer(0)};
         if constexpr (Type == Core::Reporter::PlayReportType::Old2) {
-            data.emplace_back(ctx.ReadBuffer(1));
+            if (ctx.BufferDescriptorA().size() > 1 || ctx.BufferDescriptorX().size() > 1)
+                data.emplace_back(ctx.ReadBuffer(1));
+            else
+                LOG_ERROR(Service_PREPO, "SaveReportWithUser<Old2> is missing buffer index 1");
         }
 
         LOG_DEBUG(
