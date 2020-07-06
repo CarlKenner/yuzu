@@ -30,6 +30,8 @@ u32 ShaderIR::DecodeHalfSet(NodeBlock& bb, u32 pc) {
     bool neg_b;
     bool abs_b;
     switch (opcode->get().GetId()) {
+    default:
+        UNREACHABLE();
     case OpCode::Id::HSET2_C:
     case OpCode::Id::HSET2_IMM:
         cond = instr.hsetp2.cbuf_and_imm.cond;
@@ -49,8 +51,6 @@ u32 ShaderIR::DecodeHalfSet(NodeBlock& bb, u32 pc) {
         neg_b = instr.Bit(31);
         abs_b = instr.Bit(30);
         break;
-    default:
-        UNREACHABLE();
     }
 
     Node op_b = [this, instr, opcode] {

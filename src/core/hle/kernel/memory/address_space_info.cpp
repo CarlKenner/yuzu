@@ -97,6 +97,7 @@ u64 AddressSpaceInfo::GetAddressSpaceStart(std::size_t width, AddressSpaceInfo::
         return AddressSpaceInfos[AddressSpaceIndices39Bit[index]].GetAddress();
     }
     UNREACHABLE();
+    return 0;
 }
 
 std::size_t AddressSpaceInfo::GetAddressSpaceSize(std::size_t width, AddressSpaceInfo::Type type) {
@@ -113,6 +114,7 @@ std::size_t AddressSpaceInfo::GetAddressSpaceSize(std::size_t width, AddressSpac
         return AddressSpaceInfos[AddressSpaceIndices39Bit[index]].GetSize();
     }
     UNREACHABLE();
+    return 0;
 }
 
 } // namespace Kernel::Memory

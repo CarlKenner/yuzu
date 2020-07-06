@@ -106,6 +106,7 @@ ContentRecordType GetCRTypeFromNCAType(NCAContentType type) {
         return ContentRecordType::HtmlDocument;
     default:
         UNREACHABLE_MSG("Invalid NCAContentType={:02X}", static_cast<u8>(type));
+        return ContentRecordType::Data;
     }
 }
 

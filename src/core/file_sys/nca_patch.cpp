@@ -147,6 +147,7 @@ std::pair<std::size_t, std::size_t> BKTR::SearchBucketEntry(u64 offset, BlockTyp
     }
 
     UNREACHABLE_MSG("Offset could not be found in BKTR block.");
+    return {};
 }
 
 RelocationEntry BKTR::GetRelocationEntry(u64 offset) const {

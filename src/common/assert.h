@@ -27,6 +27,8 @@ __declspec(noinline, noreturn)
     exit(1); // Keeps GCC's mouth shut about this actually returning
 }
 
+#ifdef YUZU_ASSERT
+
 #define ASSERT(_a_)                                                                                \
     do                                                                                             \
         if (!(_a_)) {                                                                              \
@@ -76,3 +78,72 @@ __declspec(noinline, noreturn)
             _b_                                                                                    \
         }                                                                                          \
     } while (0)
+
+#else
+
+#ifndef YUZU_IGNORE_ASSERT
+
+#define ASSERT(_a_)                                                                                \
+    if (!(_a_)) {                                                                                  \
+        LOG_CRITICAL(Debug, "Assertion Failed! Expected " #_a_);                                                  \
+    }
+
+#define ASSERT_MSG(_a_, ...)                                                                       \
+    if (!(_a_)) {                                                                                  \
+        LOG_CRITICAL(Debug, "Assertion Failed! " __VA_ARGS__);                                     \
+    }
+
+#define UNREACHABLE()                                                                              \
+    { LOG_CRITICAL(Debug, "Unreachable code!"); }
+#define UNREACHABLE_MSG(...)                                                                       \
+    { LOG_CRITICAL(Debug, "Unreachable code!\n" __VA_ARGS__); }
+
+#ifdef _DEBUG
+#define DEBUG_ASSERT(_a_) ASSERT(_a_)
+#define DEBUG_ASSERT_MSG(_a_, ...) ASSERT_MSG(_a_, __VA_ARGS__)
+#else // not debug
+#define DEBUG_ASSERT(_a_)
+#define DEBUG_ASSERT_MSG(_a_, _desc_, ...)
+#endif
+
+#define UNIMPLEMENTED() ASSERT_MSG(false, "Unimplemented code!")
+#define UNIMPLEMENTED_MSG(...) ASSERT_MSG(false, __VA_ARGS__)
+
+#define UNIMPLEMENTED_IF(cond) ASSERT_MSG(!(cond), "Unimplemented code! " #cond)
+#define UNIMPLEMENTED_IF_MSG(cond, ...) ASSERT_MSG(!(cond), __VA_ARGS__)
+
+// If the assert is ignored, execute _b_
+#define ASSERT_OR_EXECUTE(_a_, _b_)                                                                \
+    do {                                                                                           \
+        ASSERT(_a_);                                                                               \
+        if (!(_a_)) {                                                                              \
+            _b_                                                                                    \
+        }                                                                                          \
+    } while (0)
+
+// If the assert is ignored, execute _b_
+#define ASSERT_OR_EXECUTE_MSG(_a_, _b_, ...)                                                       \
+    do {                                                                                           \
+        ASSERT_MSG(_a_, __VA_ARGS__);                                                              \
+        if (!(_a_)) {                                                                              \
+            _b_                                                                                    \
+        }                                                                                          \
+    } while (0)
+
+#else
+
+#define ASSERT(_a_)
+#define ASSERT_MSG(_a_, ...)
+#define UNREACHABLE()
+#define UNREACHABLE_MSG(...)
+#define DEBUG_ASSERT(_a_)
+#define DEBUG_ASSERT_MSG(_a_, _desc_, ...)
+#define UNIMPLEMENTED()
+#define UNIMPLEMENTED_MSG(...)
+#define UNIMPLEMENTED_IF(cond)
+#define UNIMPLEMENTED_IF_MSG(cond, ...)
+#define ASSERT_OR_EXECUTE(_a_, _b_)
+#define ASSERT_OR_EXECUTE_MSG(_a_, _b_, ...)
+
+#endif
+#endif
