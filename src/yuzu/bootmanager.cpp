@@ -16,6 +16,11 @@
 #ifdef HAS_OPENGL
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
+#ifdef DOLPHIN
+#ifdef _WIN32
+#include "Common/GL/GLInterface/WGL.h"
+#endif
+#endif
 #endif
 
 #if !defined(WIN32) && HAS_VULKAN
@@ -38,6 +43,10 @@
 #include "video_core/video_core.h"
 #include "yuzu/bootmanager.h"
 #include "yuzu/main.h"
+
+#ifdef DOLPHIN
+#include "Common/GL/GLContext.h"
+#endif
 
 EmuThread::EmuThread() = default;
 
@@ -118,6 +127,26 @@ void EmuThread::run() {
 }
 
 #ifdef HAS_OPENGL
+// QWGLNativeContext header file is missing, so this won't work
+#if 0
+std::unique_ptr<QOpenGLContext> GetDolphinContext(GLContext* dolphin_context) {
+    if (!dolphin_context) {
+        return nullptr;
+    }
+#ifdef _WIN32
+    auto context = std::make_unique<QOpenGLContext>();
+    GLContextWGL* w = (GLContextWGL*)dolphin_context;
+    QWGLNativeContext native(w->m_rc, w->m_window_handle);
+    context->setNativeHandle(native);
+    if (!context->create()) {
+        LOG_ERROR(Frontend, "Unable to create Dolphin openGL context");
+    }
+#else
+    return nullptr;
+#endif
+}
+#endif
+
 class OpenGLSharedContext : public Core::Frontend::GraphicsContext {
 public:
     /// Create the original context that should be shared from
@@ -135,9 +164,28 @@ public:
 
         context = std::make_unique<QOpenGLContext>();
         context->setFormat(format);
+#if 0
+        auto old_context = GetDolphinContext(g_first_context);
+        if (old_context)
+            context->setShareContext(old_context);
+#endif
+
         if (!context->create()) {
             LOG_ERROR(Frontend, "Unable to create main openGL context");
         }
+// We want the new context to share textures etc. with Dolphin's first context
+#ifdef DOLPHIN
+#if defined _WIN32
+        if (g_first_context) {
+            context->makeCurrent(surface);
+            HGLRC new_context = wglGetCurrentContext();
+            HGLRC old_context = ((GLContextWGL*)g_first_context)->m_rc;
+            if (!wglShareLists(old_context, new_context)) {
+                LOG_ERROR(Frontend, "Could not share lists!");
+            }
+        }
+#endif
+#endif
     }
 
     /// Create the shared contexts for rendering and presentation

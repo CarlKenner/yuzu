@@ -26,6 +26,10 @@
 #include "video_core/renderer_opengl/gl_shader_manager.h"
 #include "video_core/renderer_opengl/renderer_opengl.h"
 
+#ifdef DOLPHIN
+#include "Switch/PresentOpenGL.h"
+#endif
+
 namespace OpenGL {
 
 namespace {
@@ -672,6 +676,37 @@ void RendererOpenGL::DrawScreen(const Layout::FramebufferLayout& layout) {
     } else {
         glBindVertexBuffer(0, vertex_buffer.handle, 0, sizeof(ScreenRectVertex));
     }
+
+#ifdef DOLPHIN
+    {
+        enum class AspectRatio {
+            Default,
+            R4_3,
+            R21_9,
+            StretchToWindow,
+        };
+        auto mode = static_cast<AspectRatio>(Settings::values.aspect_ratio);
+        float aspect = 16.0f / 9.0f;
+        switch (mode) {
+        case AspectRatio::R4_3:
+            aspect = 4.0f / 3.0f;
+            break;
+        case AspectRatio::R21_9:
+            // According to Wikipedia, 21:9 isn't actually 21:9, it's (21 and a third):9
+            // aspect = 64.0f / 27.0f;
+            // but for now, keep it the same as yuzu
+            aspect = 21.0f / 9.0f;
+            break;
+        case AspectRatio::StretchToWindow:
+            aspect = (float)layout.width / layout.height;
+            break;
+        }
+        PresentOGLTexture(screen_info.display_texture, screen_info.texture.width,
+                          screen_info.texture.height, GL_TEXTURE_2D, screen_info.texture.gl_format, screen_info.texture.gl_type,
+            static_cast<u32>(framebuffer_transform_flags), aspect, framebuffer_crop_rect.left, framebuffer_crop_rect.top,
+                          framebuffer_crop_rect.GetWidth(), framebuffer_crop_rect.GetHeight());
+    }
+#endif
 
     glBindTextureUnit(0, screen_info.display_texture);
     glBindSampler(0, 0);
