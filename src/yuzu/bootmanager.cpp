@@ -315,7 +315,8 @@ GRenderWindow::GRenderWindow(GMainWindow* parent_, EmuThread* emu_thread_)
 
     this->setMouseTracking(true);
 
-    connect(this, &GRenderWindow::FirstFrameDisplayed, parent_, &GMainWindow::OnLoadComplete);
+    if (parent_)
+      connect(this, &GRenderWindow::FirstFrameDisplayed, parent_, &GMainWindow::OnLoadComplete);
 }
 
 GRenderWindow::~GRenderWindow() {
