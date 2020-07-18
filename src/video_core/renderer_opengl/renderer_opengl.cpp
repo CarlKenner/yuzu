@@ -459,8 +459,8 @@ void RendererOpenGL::LoadColorToActiveGLTexture(u8 color_r, u8 color_g, u8 color
 void RendererOpenGL::InitOpenGLObjects() {
     frame_mailbox = std::make_unique<FrameMailbox>();
 
-    glClearColor(Settings::values.bg_red, Settings::values.bg_green, Settings::values.bg_blue,
-                 0.0f);
+    glClearColor(Settings::values.bg_red.GetValue(), Settings::values.bg_green.GetValue(),
+                 Settings::values.bg_blue.GetValue(), 0.0f);
 
     // Create shader programs
     OGLShader vertex_shader;
@@ -565,8 +565,8 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
 void RendererOpenGL::DrawScreen(const Layout::FramebufferLayout& layout) {
     if (renderer_settings.set_background_color) {
         // Update background color before drawing
-        glClearColor(Settings::values.bg_red, Settings::values.bg_green, Settings::values.bg_blue,
-                     0.0f);
+        glClearColor(Settings::values.bg_red.GetValue(), Settings::values.bg_green.GetValue(),
+                     Settings::values.bg_blue.GetValue(), 0.0f);
     }
 
     // Set projection matrix
@@ -685,7 +685,7 @@ void RendererOpenGL::DrawScreen(const Layout::FramebufferLayout& layout) {
             R21_9,
             StretchToWindow,
         };
-        auto mode = static_cast<AspectRatio>(Settings::values.aspect_ratio);
+        auto mode = static_cast<AspectRatio>(Settings::values.aspect_ratio.GetValue());
         float aspect = 16.0f / 9.0f;
         switch (mode) {
         case AspectRatio::R4_3:

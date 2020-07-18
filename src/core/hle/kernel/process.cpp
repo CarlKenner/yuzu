@@ -123,7 +123,7 @@ std::shared_ptr<Process> Process::Create(Core::System& system, std::string name,
                                                               : kernel.CreateNewUserProcessID();
     process->capabilities.InitializeForMetadatalessProcess();
 
-    std::mt19937 rng(Settings::values.rng_seed.value_or(0));
+    std::mt19937 rng(Settings::values.rng_seed.GetValue().value_or(0));
     std::uniform_int_distribution<u64> distribution;
     std::generate(process->random_entropy.begin(), process->random_entropy.end(),
                   [&] { return distribution(rng); });
@@ -408,7 +408,7 @@ void Process::LoadModule(CodeSet code_set, VAddr base_addr) {
 Process::Process(Core::System& system)
     : SynchronizationObject{system.Kernel()}, page_table{std::make_unique<Memory::PageTable>(
                                                   system)},
-      address_arbiter{system}, mutex{system}, system{system} {}
+      handle_table{system.Kernel()}, address_arbiter{system}, mutex{system}, system{system} {}
 
 Process::~Process() = default;
 

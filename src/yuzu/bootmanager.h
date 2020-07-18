@@ -184,19 +184,17 @@ private:
 
     EmuThread* emu_thread;
 
-public:
     // Main context that will be shared with all other contexts that are requested.
     // If this is used in a shared context setting, then this should not be used directly, but
     // should instead be shared from
     std::shared_ptr<Core::Frontend::GraphicsContext> main_context;
-    // Child context, previously stored in RenderWidget
-    std::shared_ptr<Core::Frontend::GraphicsContext> child_context;
 
-private:
     /// Temporary storage of the screenshot taken
     QImage screenshot_image;
 
     QByteArray geometry;
+
+    QWidget* child_widget = nullptr;
 
     bool first_frame = false;
 

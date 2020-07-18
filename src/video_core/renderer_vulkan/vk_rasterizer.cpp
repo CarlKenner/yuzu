@@ -64,20 +64,22 @@ VkViewport GetViewportState(const VKDevice& device, const Maxwell& regs, std::si
     const auto& src = regs.viewport_transform[index];
     const float width = src.scale_x * 2.0f;
     const float height = src.scale_y * 2.0f;
-
-    VkViewport viewport;
-    viewport.x = src.translate_x - src.scale_x;
-    viewport.y = src.translate_y - src.scale_y;
-    viewport.width = width != 0.0f ? width : 1.0f;
-    viewport.height = height != 0.0f ? height : 1.0f;
-
     const float reduce_z = regs.depth_mode == Maxwell::DepthMode::MinusOneToOne ? 1.0f : 0.0f;
-    viewport.minDepth = src.translate_z - src.scale_z * reduce_z;
-    viewport.maxDepth = src.translate_z + src.scale_z;
+
+    VkViewport viewport{
+        .x = src.translate_x - src.scale_x,
+        .y = src.translate_y - src.scale_y,
+        .width = width != 0.0f ? width : 1.0f,
+        .height = height != 0.0f ? height : 1.0f,
+        .minDepth = src.translate_z - src.scale_z * reduce_z,
+        .maxDepth = src.translate_z + src.scale_z,
+    };
+
     if (!device.IsExtDepthRangeUnrestrictedSupported()) {
         viewport.minDepth = std::clamp(viewport.minDepth, 0.0f, 1.0f);
         viewport.maxDepth = std::clamp(viewport.maxDepth, 0.0f, 1.0f);
     }
+
     return viewport;
 }
 
@@ -186,13 +188,22 @@ bool HasToPreserveDepthContents(bool is_clear, const Maxwell& regs) {
            scissor.max_y < regs.zeta_height;
 }
 
+template <std::size_t N>
+std::array<VkDeviceSize, N> ExpandStrides(const std::array<u16, N>& strides) {
+    std::array<VkDeviceSize, N> expanded;
+    std::copy(strides.begin(), strides.end(), expanded.begin());
+    return expanded;
+}
+
 } // Anonymous namespace
 
 class BufferBindings final {
 public:
-    void AddVertexBinding(VkBuffer buffer, VkDeviceSize offset) {
+    void AddVertexBinding(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, u32 stride) {
         vertex.buffers[vertex.num_buffers] = buffer;
         vertex.offsets[vertex.num_buffers] = offset;
+        vertex.sizes[vertex.num_buffers] = size;
+        vertex.strides[vertex.num_buffers] = static_cast<u16>(stride);
         ++vertex.num_buffers;
     }
 
@@ -202,76 +213,76 @@ public:
         index.type = type;
     }
 
-    void Bind(VKScheduler& scheduler) const {
+    void Bind(const VKDevice& device, VKScheduler& scheduler) const {
         // Use this large switch case to avoid dispatching more memory in the record lambda than
         // what we need. It looks horrible, but it's the best we can do on standard C++.
         switch (vertex.num_buffers) {
         case 0:
-            return BindStatic<0>(scheduler);
+            return BindStatic<0>(device, scheduler);
         case 1:
-            return BindStatic<1>(scheduler);
+            return BindStatic<1>(device, scheduler);
         case 2:
-            return BindStatic<2>(scheduler);
+            return BindStatic<2>(device, scheduler);
         case 3:
-            return BindStatic<3>(scheduler);
+            return BindStatic<3>(device, scheduler);
         case 4:
-            return BindStatic<4>(scheduler);
+            return BindStatic<4>(device, scheduler);
         case 5:
-            return BindStatic<5>(scheduler);
+            return BindStatic<5>(device, scheduler);
         case 6:
-            return BindStatic<6>(scheduler);
+            return BindStatic<6>(device, scheduler);
         case 7:
-            return BindStatic<7>(scheduler);
+            return BindStatic<7>(device, scheduler);
         case 8:
-            return BindStatic<8>(scheduler);
+            return BindStatic<8>(device, scheduler);
         case 9:
-            return BindStatic<9>(scheduler);
+            return BindStatic<9>(device, scheduler);
         case 10:
-            return BindStatic<10>(scheduler);
+            return BindStatic<10>(device, scheduler);
         case 11:
-            return BindStatic<11>(scheduler);
+            return BindStatic<11>(device, scheduler);
         case 12:
-            return BindStatic<12>(scheduler);
+            return BindStatic<12>(device, scheduler);
         case 13:
-            return BindStatic<13>(scheduler);
+            return BindStatic<13>(device, scheduler);
         case 14:
-            return BindStatic<14>(scheduler);
+            return BindStatic<14>(device, scheduler);
         case 15:
-            return BindStatic<15>(scheduler);
+            return BindStatic<15>(device, scheduler);
         case 16:
-            return BindStatic<16>(scheduler);
+            return BindStatic<16>(device, scheduler);
         case 17:
-            return BindStatic<17>(scheduler);
+            return BindStatic<17>(device, scheduler);
         case 18:
-            return BindStatic<18>(scheduler);
+            return BindStatic<18>(device, scheduler);
         case 19:
-            return BindStatic<19>(scheduler);
+            return BindStatic<19>(device, scheduler);
         case 20:
-            return BindStatic<20>(scheduler);
+            return BindStatic<20>(device, scheduler);
         case 21:
-            return BindStatic<21>(scheduler);
+            return BindStatic<21>(device, scheduler);
         case 22:
-            return BindStatic<22>(scheduler);
+            return BindStatic<22>(device, scheduler);
         case 23:
-            return BindStatic<23>(scheduler);
+            return BindStatic<23>(device, scheduler);
         case 24:
-            return BindStatic<24>(scheduler);
+            return BindStatic<24>(device, scheduler);
         case 25:
-            return BindStatic<25>(scheduler);
+            return BindStatic<25>(device, scheduler);
         case 26:
-            return BindStatic<26>(scheduler);
+            return BindStatic<26>(device, scheduler);
         case 27:
-            return BindStatic<27>(scheduler);
+            return BindStatic<27>(device, scheduler);
         case 28:
-            return BindStatic<28>(scheduler);
+            return BindStatic<28>(device, scheduler);
         case 29:
-            return BindStatic<29>(scheduler);
+            return BindStatic<29>(device, scheduler);
         case 30:
-            return BindStatic<30>(scheduler);
+            return BindStatic<30>(device, scheduler);
         case 31:
-            return BindStatic<31>(scheduler);
+            return BindStatic<31>(device, scheduler);
         case 32:
-            return BindStatic<32>(scheduler);
+            return BindStatic<32>(device, scheduler);
         }
         UNREACHABLE();
     }
@@ -282,6 +293,8 @@ private:
         std::size_t num_buffers = 0;
         std::array<VkBuffer, Maxwell::NumVertexArrays> buffers;
         std::array<VkDeviceSize, Maxwell::NumVertexArrays> offsets;
+        std::array<VkDeviceSize, Maxwell::NumVertexArrays> sizes;
+        std::array<u16, Maxwell::NumVertexArrays> strides;
     } vertex;
 
     struct {
@@ -291,15 +304,23 @@ private:
     } index;
 
     template <std::size_t N>
-    void BindStatic(VKScheduler& scheduler) const {
-        if (index.buffer) {
-            BindStatic<N, true>(scheduler);
+    void BindStatic(const VKDevice& device, VKScheduler& scheduler) const {
+        if (device.IsExtExtendedDynamicStateSupported()) {
+            if (index.buffer) {
+                BindStatic<N, true, true>(scheduler);
+            } else {
+                BindStatic<N, false, true>(scheduler);
+            }
         } else {
-            BindStatic<N, false>(scheduler);
+            if (index.buffer) {
+                BindStatic<N, true, false>(scheduler);
+            } else {
+                BindStatic<N, false, false>(scheduler);
+            }
         }
     }
 
-    template <std::size_t N, bool is_indexed>
+    template <std::size_t N, bool is_indexed, bool has_extended_dynamic_state>
     void BindStatic(VKScheduler& scheduler) const {
         static_assert(N <= Maxwell::NumVertexArrays);
         if constexpr (N == 0) {
@@ -310,6 +331,31 @@ private:
         std::array<VkDeviceSize, N> offsets;
         std::copy(vertex.buffers.begin(), vertex.buffers.begin() + N, buffers.begin());
         std::copy(vertex.offsets.begin(), vertex.offsets.begin() + N, offsets.begin());
+
+        if constexpr (has_extended_dynamic_state) {
+            // With extended dynamic states we can specify the length and stride of a vertex buffer
+            std::array<VkDeviceSize, N> sizes;
+            std::array<u16, N> strides;
+            std::copy(vertex.sizes.begin(), vertex.sizes.begin() + N, sizes.begin());
+            std::copy(vertex.strides.begin(), vertex.strides.begin() + N, strides.begin());
+
+            if constexpr (is_indexed) {
+                scheduler.Record(
+                    [buffers, offsets, sizes, strides, index = index](vk::CommandBuffer cmdbuf) {
+                        cmdbuf.BindIndexBuffer(index.buffer, index.offset, index.type);
+                        cmdbuf.BindVertexBuffers2EXT(0, static_cast<u32>(N), buffers.data(),
+                                                     offsets.data(), sizes.data(),
+                                                     ExpandStrides(strides).data());
+                    });
+            } else {
+                scheduler.Record([buffers, offsets, sizes, strides](vk::CommandBuffer cmdbuf) {
+                    cmdbuf.BindVertexBuffers2EXT(0, static_cast<u32>(N), buffers.data(),
+                                                 offsets.data(), sizes.data(),
+                                                 ExpandStrides(strides).data());
+                });
+            }
+            return;
+        }
 
         if constexpr (is_indexed) {
             // Indexed draw
@@ -369,7 +415,7 @@ void RasterizerVulkan::Draw(bool is_indexed, bool is_instanced) {
 
     const auto& gpu = system.GPU().Maxwell3D();
     GraphicsPipelineCacheKey key;
-    key.fixed_state.Fill(gpu.regs);
+    key.fixed_state.Fill(gpu.regs, device.IsExtExtendedDynamicStateSupported());
 
     buffer_cache.Map(CalculateGraphicsStreamBufferSize(is_indexed));
 
@@ -402,7 +448,7 @@ void RasterizerVulkan::Draw(bool is_indexed, bool is_instanced) {
 
     UpdateDynamicStates();
 
-    buffer_bindings.Bind(scheduler);
+    buffer_bindings.Bind(device, scheduler);
 
     BeginTransformFeedback();
 
@@ -464,10 +510,11 @@ void RasterizerVulkan::Clear() {
 
         const u32 color_attachment = regs.clear_buffers.RT;
         scheduler.Record([color_attachment, clear_value, clear_rect](vk::CommandBuffer cmdbuf) {
-            VkClearAttachment attachment;
-            attachment.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            attachment.colorAttachment = color_attachment;
-            attachment.clearValue = clear_value;
+            const VkClearAttachment attachment{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .colorAttachment = color_attachment,
+                .clearValue = clear_value,
+            };
             cmdbuf.ClearAttachments(attachment, clear_rect);
         });
     }
@@ -507,13 +554,16 @@ void RasterizerVulkan::DispatchCompute(GPUVAddr code_addr) {
     query_cache.UpdateCounters();
 
     const auto& launch_desc = system.GPU().KeplerCompute().launch_description;
-    ComputePipelineCacheKey key;
-    key.shader = code_addr;
-    key.shared_memory_size = launch_desc.shared_alloc;
-    key.workgroup_size = {launch_desc.block_dim_x, launch_desc.block_dim_y,
-                          launch_desc.block_dim_z};
-
-    auto& pipeline = pipeline_cache.GetComputePipeline(key);
+    auto& pipeline = pipeline_cache.GetComputePipeline({
+        .shader = code_addr,
+        .shared_memory_size = launch_desc.shared_alloc,
+        .workgroup_size =
+            {
+                launch_desc.block_dim_x,
+                launch_desc.block_dim_y,
+                launch_desc.block_dim_z,
+            },
+    });
 
     // Compute dispatches can't be executed inside a renderpass
     scheduler.RequestOutsideRenderPassOperationContext();
@@ -797,17 +847,17 @@ std::tuple<VkFramebuffer, VkExtent2D> RasterizerVulkan::ConfigureFramebuffers(
     const auto [fbentry, is_cache_miss] = framebuffer_cache.try_emplace(key);
     auto& framebuffer = fbentry->second;
     if (is_cache_miss) {
-        VkFramebufferCreateInfo framebuffer_ci;
-        framebuffer_ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebuffer_ci.pNext = nullptr;
-        framebuffer_ci.flags = 0;
-        framebuffer_ci.renderPass = key.renderpass;
-        framebuffer_ci.attachmentCount = static_cast<u32>(key.views.size());
-        framebuffer_ci.pAttachments = key.views.data();
-        framebuffer_ci.width = key.width;
-        framebuffer_ci.height = key.height;
-        framebuffer_ci.layers = key.layers;
-        framebuffer = device.GetLogical().CreateFramebuffer(framebuffer_ci);
+        framebuffer = device.GetLogical().CreateFramebuffer({
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .renderPass = key.renderpass,
+            .attachmentCount = static_cast<u32>(key.views.size()),
+            .pAttachments = key.views.data(),
+            .width = key.width,
+            .height = key.height,
+            .layers = key.layers,
+        });
     }
 
     return {*framebuffer, VkExtent2D{key.width, key.height}};
@@ -822,7 +872,7 @@ RasterizerVulkan::DrawParameters RasterizerVulkan::SetupGeometry(FixedPipelineSt
     const auto& gpu = system.GPU().Maxwell3D();
     const auto& regs = gpu.regs;
 
-    SetupVertexArrays(fixed_state.vertex_input, buffer_bindings);
+    SetupVertexArrays(buffer_bindings);
 
     const u32 base_instance = regs.vb_base_instance;
     const u32 num_instances = is_instanced ? gpu.mme_draw.instance_count : 1;
@@ -893,6 +943,17 @@ void RasterizerVulkan::UpdateDynamicStates() {
     UpdateBlendConstants(regs);
     UpdateDepthBounds(regs);
     UpdateStencilFaces(regs);
+    if (device.IsExtExtendedDynamicStateSupported()) {
+        UpdateCullMode(regs);
+        UpdateDepthBoundsTestEnable(regs);
+        UpdateDepthTestEnable(regs);
+        UpdateDepthWriteEnable(regs);
+        UpdateDepthCompareOp(regs);
+        UpdateFrontFace(regs);
+        UpdatePrimitiveTopology(regs);
+        UpdateStencilOp(regs);
+        UpdateStencilTestEnable(regs);
+    }
 }
 
 void RasterizerVulkan::BeginTransformFeedback() {
@@ -940,41 +1001,25 @@ void RasterizerVulkan::EndTransformFeedback() {
         [](vk::CommandBuffer cmdbuf) { cmdbuf.EndTransformFeedbackEXT(0, 0, nullptr, nullptr); });
 }
 
-void RasterizerVulkan::SetupVertexArrays(FixedPipelineState::VertexInput& vertex_input,
-                                         BufferBindings& buffer_bindings) {
+void RasterizerVulkan::SetupVertexArrays(BufferBindings& buffer_bindings) {
     const auto& regs = system.GPU().Maxwell3D().regs;
-
-    for (std::size_t index = 0; index < Maxwell::NumVertexAttributes; ++index) {
-        const auto& attrib = regs.vertex_attrib_format[index];
-        if (attrib.IsConstant()) {
-            vertex_input.SetAttribute(index, false, 0, 0, {}, {});
-            continue;
-        }
-        vertex_input.SetAttribute(index, true, attrib.buffer, attrib.offset, attrib.type.Value(),
-                                  attrib.size.Value());
-    }
 
     for (std::size_t index = 0; index < Maxwell::NumVertexArrays; ++index) {
         const auto& vertex_array = regs.vertex_array[index];
         if (!vertex_array.IsEnabled()) {
-            vertex_input.SetBinding(index, false, 0, 0);
             continue;
         }
-        vertex_input.SetBinding(
-            index, true, vertex_array.stride,
-            regs.instanced_arrays.IsInstancingEnabled(index) ? vertex_array.divisor : 0);
-
         const GPUVAddr start{vertex_array.StartAddress()};
         const GPUVAddr end{regs.vertex_array_limit[index].LimitAddress()};
 
         ASSERT(end >= start);
-        const std::size_t size{end - start};
+        const std::size_t size = end - start;
         if (size == 0) {
-            buffer_bindings.AddVertexBinding(DefaultBuffer(), 0);
+            buffer_bindings.AddVertexBinding(DefaultBuffer(), 0, DEFAULT_BUFFER_SIZE, 0);
             continue;
         }
         const auto info = buffer_cache.UploadMemory(start, size);
-        buffer_bindings.AddVertexBinding(info.handle, info.offset);
+        buffer_bindings.AddVertexBinding(info.handle, info.offset, size, vertex_array.stride);
     }
 }
 
@@ -1326,6 +1371,117 @@ void RasterizerVulkan::UpdateStencilFaces(Tegra::Engines::Maxwell3D::Regs& regs)
     }
 }
 
+void RasterizerVulkan::UpdateCullMode(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchCullMode()) {
+        return;
+    }
+    scheduler.Record(
+        [enabled = regs.cull_test_enabled, cull_face = regs.cull_face](vk::CommandBuffer cmdbuf) {
+            cmdbuf.SetCullModeEXT(enabled ? MaxwellToVK::CullFace(cull_face) : VK_CULL_MODE_NONE);
+        });
+}
+
+void RasterizerVulkan::UpdateDepthBoundsTestEnable(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchDepthBoundsTestEnable()) {
+        return;
+    }
+    scheduler.Record([enable = regs.depth_bounds_enable](vk::CommandBuffer cmdbuf) {
+        cmdbuf.SetDepthBoundsTestEnableEXT(enable);
+    });
+}
+
+void RasterizerVulkan::UpdateDepthTestEnable(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchDepthTestEnable()) {
+        return;
+    }
+    scheduler.Record([enable = regs.depth_test_enable](vk::CommandBuffer cmdbuf) {
+        cmdbuf.SetDepthTestEnableEXT(enable);
+    });
+}
+
+void RasterizerVulkan::UpdateDepthWriteEnable(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchDepthWriteEnable()) {
+        return;
+    }
+    scheduler.Record([enable = regs.depth_write_enabled](vk::CommandBuffer cmdbuf) {
+        cmdbuf.SetDepthWriteEnableEXT(enable);
+    });
+}
+
+void RasterizerVulkan::UpdateDepthCompareOp(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchDepthCompareOp()) {
+        return;
+    }
+    scheduler.Record([func = regs.depth_test_func](vk::CommandBuffer cmdbuf) {
+        cmdbuf.SetDepthCompareOpEXT(MaxwellToVK::ComparisonOp(func));
+    });
+}
+
+void RasterizerVulkan::UpdateFrontFace(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchFrontFace()) {
+        return;
+    }
+
+    VkFrontFace front_face = MaxwellToVK::FrontFace(regs.front_face);
+    if (regs.screen_y_control.triangle_rast_flip != 0) {
+        front_face = front_face == VK_FRONT_FACE_CLOCKWISE ? VK_FRONT_FACE_COUNTER_CLOCKWISE
+                                                           : VK_FRONT_FACE_CLOCKWISE;
+    }
+    scheduler.Record(
+        [front_face](vk::CommandBuffer cmdbuf) { cmdbuf.SetFrontFaceEXT(front_face); });
+}
+
+void RasterizerVulkan::UpdatePrimitiveTopology(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchPrimitiveTopology()) {
+        return;
+    }
+    const Maxwell::PrimitiveTopology primitive_topology = regs.draw.topology.Value();
+    scheduler.Record([this, primitive_topology](vk::CommandBuffer cmdbuf) {
+        cmdbuf.SetPrimitiveTopologyEXT(MaxwellToVK::PrimitiveTopology(device, primitive_topology));
+    });
+}
+
+void RasterizerVulkan::UpdateStencilOp(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchStencilOp()) {
+        return;
+    }
+    const Maxwell::StencilOp fail = regs.stencil_front_op_fail;
+    const Maxwell::StencilOp zfail = regs.stencil_front_op_zfail;
+    const Maxwell::StencilOp zpass = regs.stencil_front_op_zpass;
+    const Maxwell::ComparisonOp compare = regs.stencil_front_func_func;
+    if (regs.stencil_two_side_enable) {
+        scheduler.Record([fail, zfail, zpass, compare](vk::CommandBuffer cmdbuf) {
+            cmdbuf.SetStencilOpEXT(VK_STENCIL_FACE_FRONT_AND_BACK, MaxwellToVK::StencilOp(fail),
+                                   MaxwellToVK::StencilOp(zpass), MaxwellToVK::StencilOp(zfail),
+                                   MaxwellToVK::ComparisonOp(compare));
+        });
+    } else {
+        const Maxwell::StencilOp back_fail = regs.stencil_back_op_fail;
+        const Maxwell::StencilOp back_zfail = regs.stencil_back_op_zfail;
+        const Maxwell::StencilOp back_zpass = regs.stencil_back_op_zpass;
+        const Maxwell::ComparisonOp back_compare = regs.stencil_back_func_func;
+        scheduler.Record([fail, zfail, zpass, compare, back_fail, back_zfail, back_zpass,
+                          back_compare](vk::CommandBuffer cmdbuf) {
+            cmdbuf.SetStencilOpEXT(VK_STENCIL_FACE_FRONT_BIT, MaxwellToVK::StencilOp(fail),
+                                   MaxwellToVK::StencilOp(zpass), MaxwellToVK::StencilOp(zfail),
+                                   MaxwellToVK::ComparisonOp(compare));
+            cmdbuf.SetStencilOpEXT(VK_STENCIL_FACE_BACK_BIT, MaxwellToVK::StencilOp(back_fail),
+                                   MaxwellToVK::StencilOp(back_zpass),
+                                   MaxwellToVK::StencilOp(back_zfail),
+                                   MaxwellToVK::ComparisonOp(back_compare));
+        });
+    }
+}
+
+void RasterizerVulkan::UpdateStencilTestEnable(Tegra::Engines::Maxwell3D::Regs& regs) {
+    if (!state_tracker.TouchStencilTestEnable()) {
+        return;
+    }
+    scheduler.Record([enable = regs.stencil_enable](vk::CommandBuffer cmdbuf) {
+        cmdbuf.SetStencilTestEnableEXT(enable);
+    });
+}
+
 std::size_t RasterizerVulkan::CalculateGraphicsStreamBufferSize(bool is_indexed) const {
     std::size_t size = CalculateVertexArraysSize();
     if (is_indexed) {
@@ -1403,17 +1559,17 @@ VkBuffer RasterizerVulkan::DefaultBuffer() {
         return *default_buffer;
     }
 
-    VkBufferCreateInfo ci;
-    ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    ci.pNext = nullptr;
-    ci.flags = 0;
-    ci.size = DEFAULT_BUFFER_SIZE;
-    ci.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-    ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    ci.queueFamilyIndexCount = 0;
-    ci.pQueueFamilyIndices = nullptr;
-    default_buffer = device.GetLogical().CreateBuffer(ci);
+    default_buffer = device.GetLogical().CreateBuffer({
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .pNext = nullptr,
+        .flags = 0,
+        .size = DEFAULT_BUFFER_SIZE,
+        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = nullptr,
+    });
     default_buffer_commit = memory_manager.Commit(default_buffer, false);
 
     scheduler.RequestOutsideRenderPassOperationContext();

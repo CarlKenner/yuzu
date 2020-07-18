@@ -46,13 +46,6 @@
 
 #ifdef DOLPHIN
 #include "Common/GL/GLContext.h"
-//#include "Common/GL/GLExtensions/GLExtensions.h"
-#include "Common/WindowSystemInfo.h"
-#include "DolphinQt/RenderWidget.h"
-#include "VideoCommon/VideoConfig.h"
-#undef RenderWidget
-
-extern WindowSystemInfo g_wsi;
 #endif
 
 EmuThread::EmuThread() = default;
@@ -157,40 +150,65 @@ std::unique_ptr<QOpenGLContext> GetDolphinContext(GLContext* dolphin_context) {
 class OpenGLSharedContext : public Core::Frontend::GraphicsContext {
 public:
     /// Create the original context that should be shared from
-    explicit OpenGLSharedContext(const WindowSystemInfo& wsi) : m_wsi(wsi) {
-        auto old_context = g_first_context;
-        m_context = GLContext::Create(wsi, false, false, false, false);
-        if (!m_context) {
-            LOG_ERROR(Frontend, "Unable to create main openGL context");
-            return;
+    explicit OpenGLSharedContext(QSurface* surface) : surface(surface) {
+        QSurfaceFormat format;
+        format.setVersion(4, 3);
+        format.setProfile(QSurfaceFormat::CompatibilityProfile);
+        format.setOption(QSurfaceFormat::FormatOption::DeprecatedFunctions);
+        if (Settings::values.renderer_debug) {
+            format.setOption(QSurfaceFormat::FormatOption::DebugContext);
         }
-        if (old_context) {
-            old_context->ClearOtherThread();
-            old_context->ShareWith(m_context.get());
-            old_context->RestoreOtherThread();
-        }
-
         // TODO: expose a setting for buffer value (ie default/single/double/triple)
-        m_context->SwapInterval(0);
+        format.setSwapBehavior(QSurfaceFormat::DefaultSwapBehavior);
+        format.setSwapInterval(0);
+
+        context = std::make_unique<QOpenGLContext>();
+        context->setFormat(format);
+#if 0
+        auto old_context = GetDolphinContext(g_first_context);
+        if (old_context)
+            context->setShareContext(old_context);
+#endif
+
+        if (!context->create()) {
+            LOG_ERROR(Frontend, "Unable to create shared openGL context");
+        }
+// We want the new context to share textures etc. with Dolphin's first context
+#ifdef DOLPHIN
+#if defined _WIN32
+        if (g_first_context) {
+            context->makeCurrent(surface);
+            HGLRC new_context = wglGetCurrentContext();
+            HGLRC old_context = ((GLContextWGL*)g_first_context)->m_rc;
+            if (!wglShareLists(old_context, new_context)) {
+                LOG_ERROR(Frontend, "Could not share lists!");
+            }
+        }
+#endif
+#endif
     }
 
     /// Create the shared contexts for rendering and presentation
-    explicit OpenGLSharedContext(GLContext* share_context, WindowSystemInfo* main_wsi = nullptr) {
-        if (main_wsi) {
-            m_context = GLContext::Create(*main_wsi, false, false, false, false);
-            if (!m_context) {
-                LOG_ERROR(Frontend, "Unable to create shared openGL context");
-                return;
-            }
-            share_context->ShareWith(m_context.get());
-        } else {
-            m_context = share_context->CreateSharedContext(false);
+    explicit OpenGLSharedContext(QOpenGLContext* share_context, QSurface* main_surface = nullptr) {
+
+        // disable vsync for any shared contexts
+        auto format = share_context->format();
+        format.setSwapInterval(main_surface ? Settings::values.use_vsync.GetValue() : 0);
+
+        context = std::make_unique<QOpenGLContext>();
+        context->setShareContext(share_context);
+        context->setFormat(format);
+        if (!context->create()) {
+            LOG_ERROR(Frontend, "Unable to create shared openGL context");
         }
 
-        // disable vsync for any [windowless] shared contexts
-        if (main_wsi) {
-            m_context->SwapInterval(0);
-            m_wsi = *main_wsi;
+        if (!main_surface) {
+            offscreen_surface = std::make_unique<QOffscreenSurface>(nullptr);
+            offscreen_surface->setFormat(format);
+            offscreen_surface->create();
+            surface = offscreen_surface.get();
+        } else {
+            surface = main_surface;
         }
     }
 
@@ -199,7 +217,7 @@ public:
     }
 
     void SwapBuffers() override {
-        m_context->Swap();
+        context->swapBuffers(surface);
     }
 
     void MakeCurrent() override {
@@ -209,20 +227,25 @@ public:
         // Instead of always just making the context current (which does not have any caching to
         // check if the underlying context is already current) we can check for the current context
         // in the thread local data by calling `currentContext()` and checking if its ours.
-        m_context->CheckThisThread();
+        if (QOpenGLContext::currentContext() != context.get()) {
+            context->makeCurrent(surface);
+        }
     }
 
     void DoneCurrent() override {
-        m_context->ClearCurrent();
+        context->doneCurrent();
     }
 
-    GLContext* GetShareContext() {
-        return m_context.get();
+    QOpenGLContext* GetShareContext() {
+        return context.get();
     }
 
 private:
-    std::unique_ptr<GLContext> m_context;
-    WindowSystemInfo m_wsi;
+    // Avoid using Qt parent system here since we might move the QObjects to new threads
+    // As a note, this means we should avoid using slots/signals with the objects too
+    std::unique_ptr<QOpenGLContext> context;
+    std::unique_ptr<QOffscreenSurface> offscreen_surface{};
+    QSurface* surface;
 };
 #endif
 
@@ -254,6 +277,32 @@ private:
     GRenderWindow* render_window;
 };
 
+class OpenGLRenderWidget : public RenderWidget {
+public:
+    explicit OpenGLRenderWidget(GRenderWindow* parent) : RenderWidget(parent) {
+        windowHandle()->setSurfaceType(QWindow::OpenGLSurface);
+    }
+
+    void SetContext(std::unique_ptr<Core::Frontend::GraphicsContext>&& context_) {
+        context = std::move(context_);
+    }
+
+    void Present() override {
+        if (!isVisible()) {
+            return;
+        }
+
+        context->MakeCurrent();
+        if (Core::System::GetInstance().Renderer().TryPresent(100)) {
+            context->SwapBuffers();
+            glFinish();
+        }
+    }
+
+private:
+    std::unique_ptr<Core::Frontend::GraphicsContext> context{};
+};
+
 #ifdef HAS_VULKAN
 class VulkanRenderWidget : public RenderWidget {
 public:
@@ -277,7 +326,6 @@ static Core::Frontend::WindowSystemType GetWindowSystemType() {
     return Core::Frontend::WindowSystemType::Windows;
 }
 
-#if 0
 static Core::Frontend::EmuWindow::WindowSystemInfo GetWindowSystemInfo(QWindow* window) {
     Core::Frontend::EmuWindow::WindowSystemInfo wsi;
     wsi.type = GetWindowSystemType();
@@ -299,7 +347,6 @@ static Core::Frontend::EmuWindow::WindowSystemInfo GetWindowSystemInfo(QWindow* 
 
     return wsi;
 }
-#endif
 
 GRenderWindow::GRenderWindow(GMainWindow* parent_, EmuThread* emu_thread_)
     : QWidget(parent_), emu_thread(emu_thread_) {
@@ -316,7 +363,7 @@ GRenderWindow::GRenderWindow(GMainWindow* parent_, EmuThread* emu_thread_)
     this->setMouseTracking(true);
 
     if (parent_)
-      connect(this, &GRenderWindow::FirstFrameDisplayed, parent_, &GMainWindow::OnLoadComplete);
+        connect(this, &GRenderWindow::FirstFrameDisplayed, parent_, &GMainWindow::OnLoadComplete);
 }
 
 GRenderWindow::~GRenderWindow() {
@@ -493,11 +540,12 @@ void GRenderWindow::resizeEvent(QResizeEvent* event) {
 
 std::unique_ptr<Core::Frontend::GraphicsContext> GRenderWindow::CreateSharedContext() const {
 #ifdef HAS_OPENGL
-    if (Settings::values.renderer_backend == Settings::RendererBackend::OpenGL) {
+    if (Settings::values.renderer_backend.GetValue() == Settings::RendererBackend::OpenGL) {
         auto c = static_cast<OpenGLSharedContext*>(main_context.get());
         // Bind the shared contexts to the main surface in case the backend wants to take over
         // presentation
-        return std::make_unique<OpenGLSharedContext>(c->GetShareContext(), &g_wsi);
+        return std::make_unique<OpenGLSharedContext>(c->GetShareContext(),
+                                                     child_widget->windowHandle());
     }
 #endif
     return std::make_unique<DummyContext>();
@@ -508,7 +556,7 @@ bool GRenderWindow::InitRenderTarget() {
 
     first_frame = false;
 
-    switch (Settings::values.renderer_backend) {
+    switch (Settings::values.renderer_backend.GetValue()) {
     case Settings::RendererBackend::OpenGL:
         if (!InitializeOpenGL()) {
             return false;
@@ -521,13 +569,11 @@ bool GRenderWindow::InitRenderTarget() {
         break;
     }
 
-#if 0
     // Update the Window System information with the new render target
     window_info = GetWindowSystemInfo(child_widget->windowHandle());
 
     child_widget->resize(Layout::ScreenUndocked::Width, Layout::ScreenUndocked::Height);
     layout()->addWidget(child_widget);
-#endif
     // Reset minimum required size to avoid resizing issues on the main window after restarting.
     setMinimumSize(1, 1);
 
@@ -537,7 +583,7 @@ bool GRenderWindow::InitRenderTarget() {
     OnFramebufferSizeChanged();
     BackupGeometry();
 
-    if (Settings::values.renderer_backend == Settings::RendererBackend::OpenGL) {
+    if (Settings::values.renderer_backend.GetValue() == Settings::RendererBackend::OpenGL) {
         if (!LoadOpenGL()) {
             return false;
         }
@@ -547,7 +593,11 @@ bool GRenderWindow::InitRenderTarget() {
 }
 
 void GRenderWindow::ReleaseRenderTarget() {
-    child_context.reset();
+    if (child_widget) {
+        layout()->removeWidget(child_widget);
+        child_widget->deleteLater();
+        child_widget = nullptr;
+    }
     main_context.reset();
 }
 
@@ -579,29 +629,15 @@ void GRenderWindow::OnMinimalClientAreaChangeRequest(std::pair<u32, u32> minimal
 
 bool GRenderWindow::InitializeOpenGL() {
 #ifdef HAS_OPENGL
-    GLContext* oldContext = g_first_context;
-    std::unique_ptr<GLContext> main_gl_context = NULL;
-    bool prefer_gles = false; // Config::Get(Config::GFX_PREFER_GLES)
-    main_gl_context = GLContext::Create(g_wsi, g_Config.stereo_mode == StereoMode::QuadBuffer,
-                                        false, false, prefer_gles);
-    if (oldContext) {
-        oldContext->ClearOtherThread();
-        oldContext->ShareWith(main_gl_context.get());
-        oldContext->RestoreOtherThread();
-    } else {
-        if (!main_gl_context)
-            return false;
-        // if (!GLExtensions::Init(main_gl_context.get()))
-        //    return false;
-    }
-    std::unique_ptr<GLContext> child_gl_context = GLContext::Create(
-        g_wsi, g_Config.stereo_mode == StereoMode::QuadBuffer, false, false, prefer_gles);
-    main_gl_context->ShareWith(child_gl_context.get());
-
-    auto context = std::make_shared<OpenGLSharedContext>(g_wsi);
-    // child_context is used for drawing the main window from a different thread
-    child_context = std::make_unique<OpenGLSharedContext>(context->GetShareContext(), &g_wsi);
+    // TODO: One of these flags might be interesting: WA_OpaquePaintEvent, WA_NoBackground,
+    // WA_DontShowOnScreen, WA_DeleteOnClose
+    auto child = new OpenGLRenderWidget(this);
+    child_widget = child;
+    child_widget->windowHandle()->create();
+    auto context = std::make_shared<OpenGLSharedContext>(child->windowHandle());
     main_context = context;
+    child->SetContext(
+        std::make_unique<OpenGLSharedContext>(context->GetShareContext(), child->windowHandle()));
 
     return true;
 #else
@@ -613,9 +649,9 @@ bool GRenderWindow::InitializeOpenGL() {
 
 bool GRenderWindow::InitializeVulkan() {
 #ifdef HAS_VULKAN
-    //auto child = new VulkanRenderWidget(this);
-    //child_widget = child;
-    //child_widget->windowHandle()->create();
+    auto child = new VulkanRenderWidget(this);
+    child_widget = child;
+    child_widget->windowHandle()->create();
     main_context = std::make_unique<DummyContext>();
 
     return true;
